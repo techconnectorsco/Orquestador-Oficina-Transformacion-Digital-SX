@@ -22,14 +22,14 @@
 
 {#if sidebar.open}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 bg-black/50 z-40 lg:hidden" onclick={closeMobile}></div>
+	<div class="fixed inset-0 bg-black/50 z-40 xl:hidden" onclick={closeMobile}></div>
 {/if}
 
 <aside
 	class="fixed top-0 left-0 h-screen w-64 bg-card border-r border-border
 	       z-50 flex flex-col shadow-2xl transition-transform duration-300
-	       {sidebar.open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-	       lg:left-6 lg:top-24 lg:h-[calc(100vh-7rem)] lg:rounded-2xl lg:border lg:shadow-xl"
+	       {sidebar.open ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
+	       xl:left-6 xl:top-24 xl:h-[calc(100vh-7rem)] xl:rounded-2xl xl:border xl:shadow-xl"
 >
 	<!-- Header -->
 	<div class="p-5 border-b border-border">
@@ -46,7 +46,7 @@
 			</div>
 			<button
 				onclick={closeMobile}
-				class="lg:hidden p-1.5 rounded-lg hover:bg-accent transition-colors
+				class="xl:hidden p-1.5 rounded-lg hover:bg-accent transition-colors
 				       text-muted-foreground hover:text-foreground"
 				aria-label="Cerrar menú"
 			>

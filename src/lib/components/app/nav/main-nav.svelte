@@ -64,7 +64,7 @@
 			{#if showHamburger}
 				<button
 					onclick={toggleMobileSidebar}
-					class="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors text-foreground"
+					class="xl:hidden p-2 rounded-lg hover:bg-accent transition-colors text-foreground"
 					aria-label="Abrir menú"
 				>
 					<MenuIcon class="w-5 h-5" />

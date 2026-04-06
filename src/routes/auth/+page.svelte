@@ -1,16 +1,18 @@
 <script lang="ts">
-	import type { PageData } from './$types';
 	import { page } from '$app/stores';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { loginSchema, registerSchema } from '$lib/features/auth/schemas/auth';
+	import { debounce } from '$lib/utils/debounce';
 
-	let { data }: { data: PageData } = $props();
+	let { data } = $props();
 
 	let mode = $derived($page.url.searchParams.get('mode') || 'login');
 	let messageFromUrl = $derived($page.url.searchParams.get('message') || '');
 
-	// Superforms para login
+	// ============================================
+	// SUPERFORMS: Login
+	// ============================================
 	const {
 		form: loginFormData,
 		errors: loginErrors,
@@ -21,7 +23,9 @@
 		validators: zodClient(loginSchema)
 	});
 
-	// Superforms para registro
+	// ============================================
+	// SUPERFORMS: Registro
+	// ============================================
 	const {
 		form: registerFormData,
 		errors: registerErrors,
@@ -38,31 +42,86 @@
 	});
 
 	let showPassword = $state(false);
+
+	// ============================================
+	// DETECCIÓN DE DOMINIO
+	// ============================================
+	let dominioDetectado = $state<{
+		found: boolean;
+		cliente?: { id: string; nombre: string };
+		dominio?: string;
+	} | null>(null);
+	
+	let verificandoDominio = $state(false);
+
+	// Función para verificar el dominio
+	async function checkDomain(email: string) {
+		// Validar que el email tenga formato básico
+		if (!email || !email.includes('@') || !email.split('@')[1]?.includes('.')) {
+			dominioDetectado = null;
+			return;
+		}
+
+		verificandoDominio = true;
+
+		try {
+			const response = await fetch('/api/auth/check-domain', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email })
+			});
+
+			const result = await response.json();
+			dominioDetectado = result;
+
+			// Si se detectó un cliente, limpiar la selección manual
+			if (result.found && result.cliente) {
+				$registerFormData.solicitar_acceso = false;
+				$registerFormData.cliente_id = '';
+				$registerFormData.mensaje_solicitud = '';
+			}
+		} catch (error) {
+			console.error('Error verificando dominio:', error);
+			dominioDetectado = null;
+		} finally {
+			verificandoDominio = false;
+		}
+	}
+
+	// Debounce para no hacer muchas llamadas mientras escribe
+	const debouncedCheckDomain = debounce(checkDomain, 500);
+
+	// Reactivo: cuando cambia el email, verificar dominio
+	$effect(() => {
+		const email = $registerFormData.email;
+		if (mode === 'register' && email) {
+			debouncedCheckDomain(email);
+		}
+	});
+
+	// Mostrar sección de solicitud manual solo si NO se detectó dominio
+	let mostrarSolicitudManual = $derived(
+		!dominioDetectado?.found && $registerFormData.solicitar_acceso
+	);
 </script>
 
 <svelte:head>
 	<title>{mode === 'register' ? 'Crear cuenta' : 'Iniciar sesión'} | OTD_SX</title>
 </svelte:head>
 
-<div class="min-h-screen flex bg-background">
+<div class="min-h-screen flex bg-background overflow-y-auto">
 	
 	<!-- ============================================
-	     LADO IZQUIERDO - Branding (más pequeño)
+	     LADO IZQUIERDO - Branding
 	     ============================================ -->
-	<div class="hidden lg:flex lg:w-[35%] relative overflow-hidden">
-		<!-- Grid de fondo -->
+	<div class="hidden xl:flex xl:w-[400px] relative overflow-hidden">
 		<div class="auth-grid absolute inset-0 pointer-events-none"></div>
-		
-		<!-- Blobs decorativos -->
 		<div class="blob-blue absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none"></div>
 		<div class="blob-slate absolute bottom-0 right-0 w-[360px] h-[360px] rounded-full blur-[100px] pointer-events-none"></div>
 
-		<!-- Contenido -->
 		<div class="relative z-10 flex flex-col justify-center px-8 xl:px-12 w-full">
 			
-			<!-- Logo SoporteXperto -->
-			<a
-				href="https://soportexperto.com"
+				 <a href="https://soportexperto.com"
 				target="_blank"
 				rel="noopener noreferrer"
 				class="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full no-underline w-fit
@@ -83,7 +142,6 @@
 				Oficina de Transformación Digital — automatizamos procesos empresariales.
 			</p>
 
-			<!-- Stats compactos -->
 			<div class="grid grid-cols-2 gap-2 max-w-xs">
 				{#each [
 					{ v: '24+', l: 'Procesos' },
@@ -99,13 +157,13 @@
 	</div>
 
 	<!-- ============================================
-	     LADO DERECHO - Formulario (más protagonismo)
+	     LADO DERECHO - Formulario
 	     ============================================ -->
-	<div class="w-full lg:w-[65%] flex items-center justify-center px-6 py-12 bg-card">
+	<div class="w-full xl:flex-1 flex items-start xl:items-center justify-center px-4 sm:px-6 py-8 xl:py-12 bg-card overflow-y-auto">
 		<div class="w-full max-w-md">
 			
 			<!-- Logo mobile -->
-			<div class="lg:hidden text-center mb-8">
+			<div class="xl:hidden text-center mb-8">
 				<a href="/" class="inline-flex items-center gap-2 text-2xl font-bold text-foreground no-underline">
 					<span class="text-blue-600 dark:text-blue-400">OTD</span>_SX
 				</a>
@@ -123,22 +181,24 @@
 				</p>
 			</div>
 
-			<!-- Mensaje de URL (verificación exitosa, etc) -->
+			<!-- Mensaje de URL -->
 			{#if messageFromUrl}
 				<div class="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-					<svg class="w-5 h-5 text-emerald-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+					<svg class="w-5 h-5 text-emerald-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 						<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
 					</svg>
 					<p class="text-sm text-emerald-600 dark:text-emerald-400">{messageFromUrl}</p>
 				</div>
 			{/if}
 
-			<!-- FORMULARIO DE LOGIN -->
+			<!-- ============================================
+			     FORMULARIO DE LOGIN
+			     ============================================ -->
 			{#if mode === 'login'}
 				<form method="POST" action="/auth?/login" use:loginEnhance class="space-y-5">
 					{#if $loginMessage}
 						<div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10">
-							<svg class="w-5 h-5 text-red-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+							<svg class="w-5 h-5 text-red-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 								<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
 							</svg>
 							<p class="text-sm text-red-600 dark:text-red-400">{$loginMessage}</p>
@@ -242,7 +302,6 @@
 						{/if}
 					</button>
 
-					<!-- Divider -->
 					<div class="relative my-6">
 						<div class="absolute inset-0 flex items-center">
 							<div class="w-full border-t border-border"></div>
@@ -252,7 +311,6 @@
 						</div>
 					</div>
 
-					<!-- Link a registro -->
 					<p class="text-center text-sm text-muted-foreground">
 						¿No tienes una cuenta?
 						<a href="/auth?mode=register" class="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors">
@@ -261,7 +319,9 @@
 					</p>
 				</form>
 
-			<!-- FORMULARIO DE REGISTRO -->
+			<!-- ============================================
+			     FORMULARIO DE REGISTRO
+			     ============================================ -->
 			{:else}
 				<form method="POST" action="/auth?/register" use:registerEnhance class="space-y-5">
 					{#if $registerMessage}
@@ -297,29 +357,63 @@
 						{/if}
 					</div>
 
-					<!-- Email -->
+					<!-- Email con detección de dominio -->
 					<div>
 						<label for="register-email" class="block text-sm font-medium mb-2 text-foreground">
 							Correo electrónico
 						</label>
-						<input
-							id="register-email"
-							name="email"
-							type="email"
-							autocomplete="email"
-							required
-							bind:value={$registerFormData.email}
-							class="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground
-							       placeholder:text-muted-foreground
-							       focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500
-							       transition-all duration-200"
-							class:border-red-500={$registerErrors.email}
-							placeholder="tu@email.com"
-						/>
+						<div class="relative">
+							<input
+								id="register-email"
+								name="email"
+								type="email"
+								autocomplete="email"
+								required
+								bind:value={$registerFormData.email}
+								class="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground
+								       placeholder:text-muted-foreground
+								       focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500
+								       transition-all duration-200"
+								class:border-red-500={$registerErrors.email}
+								class:border-emerald-500={dominioDetectado?.found}
+								placeholder="tu@email.com"
+							/>
+							{#if verificandoDominio}
+								<div class="absolute right-3 top-1/2 -translate-y-1/2">
+									<svg class="animate-spin w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+								</div>
+							{/if}
+						</div>
 						{#if $registerErrors.email}
 							<p class="mt-2 text-sm text-red-500">{$registerErrors.email}</p>
 						{/if}
 					</div>
+
+					<!-- ============================================
+					     ALERTA: Dominio detectado automáticamente
+					     ============================================ -->
+					{#if dominioDetectado?.found && dominioDetectado.cliente}
+						<div class="flex items-start gap-3 px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+							<svg class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+							</svg>
+							<div>
+								<p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+									¡Dominio reconocido!
+								</p>
+								<p class="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+									Detectamos que tu correo pertenece a <strong>{dominioDetectado.cliente.nombre}</strong>. 
+									Al registrarte, se enviará automáticamente una solicitud de acceso para ver la información de sus automatizaciones.
+								</p>
+							</div>
+						</div>
+						<!-- Campo oculto para enviar el cliente detectado -->
+						<input type="hidden" name="cliente_id_detectado" value={dominioDetectado.cliente.id} />
+						<input type="hidden" name="dominio_detectado" value={dominioDetectado.dominio} />
+					{/if}
 
 					<!-- Password -->
 					<div>
@@ -365,7 +459,7 @@
 						{/if}
 					</div>
 
-					<!-- Campos opcionales colapsados -->
+					<!-- Campos opcionales -->
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<label for="empresa" class="block text-sm font-medium mb-2 text-foreground">
@@ -401,6 +495,81 @@
 						</div>
 					</div>
 
+					<!-- ============================================
+					     SECCIÓN: Solicitar acceso manual (solo si NO se detectó dominio)
+					     ============================================ -->
+					{#if !dominioDetectado?.found && data.clientes && data.clientes.length > 0}
+						<div class="pt-2">
+							<label class="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-border hover:bg-muted/50 transition-colors">
+								<input
+									type="checkbox"
+									name="solicitar_acceso"
+									class="mt-0.5 h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500"
+									bind:checked={$registerFormData.solicitar_acceso}
+								/>
+								<div>
+									<span class="text-sm font-medium text-foreground">
+										¿Perteneces a un cliente existente?
+									</span>
+									<p class="text-xs text-muted-foreground mt-0.5">
+										Si tu empresa ya trabaja con nosotros, solicita acceso para ver sus automatizaciones.
+									</p>
+								</div>
+							</label>
+						</div>
+
+						<!-- Campos de solicitud manual -->
+						{#if mostrarSolicitudManual}
+							<div class="space-y-4 p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+								<div>
+									<label for="cliente_id" class="block text-sm font-medium mb-2 text-foreground">
+										Selecciona la empresa
+									</label>
+									<select
+										id="cliente_id"
+										name="cliente_id"
+										bind:value={$registerFormData.cliente_id}
+										class="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground
+										       focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500
+										       transition-all duration-200"
+									>
+										<option value="">-- Selecciona un cliente --</option>
+										{#each data.clientes as cliente}
+											<option value={cliente.id}>{cliente.nombre}</option>
+										{/each}
+									</select>
+									{#if $registerErrors.cliente_id}
+										<p class="mt-2 text-sm text-red-500">{$registerErrors.cliente_id}</p>
+									{/if}
+								</div>
+
+								<div>
+									<label for="mensaje_solicitud" class="block text-sm font-medium mb-2 text-foreground">
+										¿Cuál es tu relación con esta empresa?
+									</label>
+									<textarea
+										id="mensaje_solicitud"
+										name="mensaje_solicitud"
+										rows="3"
+										bind:value={$registerFormData.mensaje_solicitud}
+										class="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground
+										       placeholder:text-muted-foreground resize-none
+										       focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500
+										       transition-all duration-200"
+										placeholder="Ej: Soy el gerente de operaciones y necesito monitorear las automatizaciones..."
+									></textarea>
+									{#if $registerErrors.mensaje_solicitud}
+										<p class="mt-2 text-sm text-red-500">{$registerErrors.mensaje_solicitud}</p>
+									{/if}
+								</div>
+
+								<p class="text-xs text-blue-600 dark:text-blue-400">
+									Tu solicitud será revisada por un administrador. Te notificaremos cuando se apruebe.
+								</p>
+							</div>
+						{/if}
+					{/if}
+
 					<!-- Submit -->
 					<button
 						type="submit"
@@ -425,7 +594,6 @@
 						{/if}
 					</button>
 
-					<!-- Divider -->
 					<div class="relative my-6">
 						<div class="absolute inset-0 flex items-center">
 							<div class="w-full border-t border-border"></div>
@@ -435,7 +603,6 @@
 						</div>
 					</div>
 
-					<!-- Link a login -->
 					<p class="text-center text-sm text-muted-foreground">
 						¿Ya tienes una cuenta?
 						<a href="/auth?mode=login" class="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors">

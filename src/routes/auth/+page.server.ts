@@ -8,7 +8,7 @@ import { loginWithPassword, registerWithPassword } from '$lib/server/auth/auth.s
 import { lucia } from '$lib/server/auth/lucia';
 import { db } from '$lib/server/db';
 import { clientes } from '$lib/server/db/schema';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Redirect si ya está logueado
@@ -22,12 +22,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const loginForm = await superValidate(zod(loginSchema));
 	const registerForm = await superValidate(zod(registerSchema));
 
-	// Cargar lista de clientes para el select de registro
+	// Cargar lista de clientes ACTIVOS para el select de registro
 	let clientesList: Array<{ id: string; nombre: string }> = [];
 	try {
 		const result = await db
 			.select({ id: clientes.id, nombre: clientes.nombre })
 			.from(clientes)
+			.where(eq(clientes.estaActivo, true))
 			.orderBy(asc(clientes.nombre));
 		clientesList = result;
 	} catch (err) {
@@ -77,9 +78,29 @@ export const actions: Actions = {
 	register: async ({ request }) => {
 		const form = await superValidate(request, zod(registerSchema));
 
+		// Extraer campos ocultos del formulario (dominio detectado)
+		const formData = await request.clone().formData();
+		const clienteIdDetectado = formData.get('cliente_id_detectado') as string | null;
+		const dominioDetectado = formData.get('dominio_detectado') as string | null;
+
 		if (!form.valid) {
 			return message(form, 'Por favor revisa los errores en el formulario');
 		}
+
+		// Determinar qué cliente y tipo de solicitud usar
+		let clienteIdFinal: string | undefined;
+		let esAutoDetectado = false;
+
+		if (clienteIdDetectado && dominioDetectado) {
+			// Caso A: Dominio fue detectado automáticamente
+			clienteIdFinal = clienteIdDetectado;
+			esAutoDetectado = true;
+		} else if (form.data.solicitar_acceso && form.data.cliente_id) {
+			// Caso B: Usuario solicitó acceso manualmente
+			clienteIdFinal = form.data.cliente_id;
+			esAutoDetectado = false;
+		}
+		// Caso C: Usuario normal sin solicitud
 
 		const result = await registerWithPassword({
 			email: form.data.email,
@@ -88,9 +109,13 @@ export const actions: Actions = {
 			empresa: form.data.empresa,
 			cargo: form.data.cargo,
 			telefono: form.data.telefono,
-			solicitarAcceso: form.data.solicitar_acceso,
-			clienteId: form.data.cliente_id,
-			mensajeSolicitud: form.data.mensaje_solicitud
+			// Pasar info de solicitud de acceso
+			solicitarAcceso: !!clienteIdFinal,
+			clienteId: clienteIdFinal,
+			mensajeSolicitud: form.data.mensaje_solicitud,
+			// Nuevos campos para dominio detectado
+			dominioDetectado: dominioDetectado || undefined,
+			esAutoDetectado
 		});
 
 		if (!result.success) {

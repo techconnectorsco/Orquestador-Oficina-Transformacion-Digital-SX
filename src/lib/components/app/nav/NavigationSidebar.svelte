@@ -47,15 +47,15 @@
 <!-- Mobile backdrop -->
 {#if sidebar.open}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 bg-black/50 z-40 lg:hidden" onclick={closeMobile}></div>
+	<div class="fixed inset-0 bg-black/50 z-40 xl:hidden" onclick={closeMobile}></div>
 {/if}
 
 <aside
 	class="fixed top-[72px] left-0 h-[calc(100vh-72px)] bg-card text-foreground border-r border-border
 	       transition-all duration-300 z-50 flex flex-col shadow-2xl
 	       {collapsed ? 'w-16 lg:w-[72px]' : 'w-64'}
-	       {sidebar.open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-	       lg:left-6 lg:top-24 lg:h-[calc(100vh-7rem)] lg:rounded-2xl lg:border lg:shadow-xl"
+	       {sidebar.open ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}
+	       xl:left-6 xl:top-24 xl:h-[calc(100vh-7rem)] xl:rounded-2xl xl:border xl:shadow-xl"
 >
 
 <!-- Header -->
@@ -150,7 +150,7 @@
 		<!-- Toggle collapse — solo desktop -->
 		<button
 			onclick={toggleSidebar}
-			class="hidden lg:flex w-full items-center justify-center gap-2 py-2 rounded-lg
+			class="hidden xl:flex w-full items-center justify-center gap-2 py-2 rounded-lg
 			       bg-accent hover:bg-accent/80 transition-colors
 			       text-accent-foreground text-xs font-medium"
 		>

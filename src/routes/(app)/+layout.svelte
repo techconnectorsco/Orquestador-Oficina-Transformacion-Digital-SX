@@ -16,11 +16,11 @@
 	{/if}
 
 	<!-- Main Content Area -->
-	<div class="flex-1 flex flex-col transition-all duration-300 {isAdmin ? 'ml-0' : 'ml-0 lg:ml-64'}" id="main-canvas">
+	<div class="flex-1 flex flex-col transition-all duration-300 {isAdmin ? 'ml-0' : 'ml-0 xl:ml-64'}" id="main-canvas">
 		<MainNav session={data.session} user={data.user} perfil={data.perfilNav} />
 
 		{#if !isAdmin}
-			<main id="content" class="pt-16 lg:pt-20 px-4 sm:px-6 lg:px-8 pb-12 w-full max-w-7xl mx-auto">
+			<main id="content" class="pt-16 xl:pt-20 px-4 sm:px-6 xl:px-8 pb-12 w-full max-w-7xl mx-auto">
 				<div class="py-4">
 					<Breadcrumb />
 				</div>
