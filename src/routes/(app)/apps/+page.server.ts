@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			const [dominioData] = await db
 				.select({ dominio: dominiosEmpresa.dominio, clienteId: dominiosEmpresa.clienteId })
 				.from(dominiosEmpresa)
-				.where(and(eq(dominiosEmpresa.dominio, emailDominio), eq(dominiosEmpresa.verificado, true)))
+				.where(and(eq(dominiosEmpresa.dominio, emailDominio), eq(dominiosEmpresa.estaActivo, true)))
 				.limit(1);
 
 			if (dominioData) {

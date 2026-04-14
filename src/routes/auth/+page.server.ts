@@ -76,12 +76,15 @@ export const actions: Actions = {
 	},
 
 	register: async ({ request }) => {
-		const form = await superValidate(request, zod(registerSchema));
-
+		// Primero leemos el formData UNA sola vez
+		const formData = await request.formData();
+		
 		// Extraer campos ocultos del formulario (dominio detectado)
-		const formData = await request.clone().formData();
 		const clienteIdDetectado = formData.get('cliente_id_detectado') as string | null;
 		const dominioDetectado = formData.get('dominio_detectado') as string | null;
+
+		// Validar con superValidate usando el formData ya leído
+		const form = await superValidate(formData, zod(registerSchema));
 
 		if (!form.valid) {
 			return message(form, 'Por favor revisa los errores en el formulario');
@@ -100,7 +103,6 @@ export const actions: Actions = {
 			clienteIdFinal = form.data.cliente_id;
 			esAutoDetectado = false;
 		}
-		// Caso C: Usuario normal sin solicitud
 
 		const result = await registerWithPassword({
 			email: form.data.email,
@@ -109,13 +111,9 @@ export const actions: Actions = {
 			empresa: form.data.empresa,
 			cargo: form.data.cargo,
 			telefono: form.data.telefono,
-			// Pasar info de solicitud de acceso
 			solicitarAcceso: !!clienteIdFinal,
 			clienteId: clienteIdFinal,
-			mensajeSolicitud: form.data.mensaje_solicitud,
-			// Nuevos campos para dominio detectado
-			dominioDetectado: dominioDetectado || undefined,
-			esAutoDetectado
+			mensajeSolicitud: form.data.mensaje_solicitud
 		});
 
 		if (!result.success) {
@@ -125,7 +123,6 @@ export const actions: Actions = {
 			return message(form, result.error || 'Error al crear la cuenta', { status: 400 });
 		}
 
-		// Redirige a página de instrucciones de verificación
 		throw redirect(
 			303,
 			`${AUTH_REDIRECT_PATHS.FLOW.VERIFY}?email=${encodeURIComponent(form.data.email)}`
