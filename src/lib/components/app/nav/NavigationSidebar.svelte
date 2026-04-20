@@ -19,6 +19,7 @@
 		{ label: 'Aplicaciones',  href: '/apps',     icon: 'globe'     },
 		{ label: 'Clientes',      href: '/clientes', icon: 'building'  },
 		{ label: 'Bitácora',      href: '/logs',     icon: 'file'      },
+		{ label: 'Finanzas',      href: '/Finanzas', icon: 'file'      },
 	];
 
 	const icons: Record<string, string> = {
