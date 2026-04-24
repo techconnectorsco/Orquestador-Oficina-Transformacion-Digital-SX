@@ -16,7 +16,7 @@
 	{/if}
 
 	<!-- Main Content Area -->
-	<div class="flex-1 flex flex-col transition-all duration-300 {isAdmin ? 'ml-0' : 'ml-0 xl:ml-64'}" id="main-canvas">
+	<div class="flex-1 flex flex-col transition-all duration-300 min-w-0 overflow-x-hidden {isAdmin ? 'ml-0' : 'ml-0 xl:ml-64'}" id="main-canvas">
 		<MainNav session={data.session} user={data.user} perfil={data.perfilNav} />
 
 		{#if !isAdmin}

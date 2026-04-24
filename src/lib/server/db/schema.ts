@@ -8,7 +8,8 @@ import {
 	timestamp,
 	index,
 	uniqueIndex,
-	jsonb
+	jsonb,
+	numeric
 } from 'drizzle-orm/pg-core';
 
 // ============================================
@@ -205,6 +206,33 @@ export const proyectosSoftware = pgTable('proyectos_software', {
 });
 
 // ============================================
+// TABLA: registros_facturacion
+// ============================================
+
+export const registrosFacturacion = pgTable('registros_facturacion', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  creadoPor: uuid('creado_por').notNull().references(() => users.id),
+  companiaFactura:  text('compania_factura').notNull().default(''),
+  cliente:          text('cliente').notNull().default(''),
+  tecnicos:         text('tecnicos').notNull().default(''),
+  fechaTrabajo:     text('fecha_trabajo'),
+  fechaReportado:   text('fecha_reportado'),
+  horas:            numeric('horas', { precision: 6, scale: 2 }).notNull().default('0'),
+  moneda:           text('moneda').notNull().default('Colones'),     // 'Colones' | 'Dólares'
+  montoPorHora:     numeric('monto_por_hora', { precision: 12, scale: 2 }),
+  tipoVisita:       text('tipo_visita').notNull().default(''),
+  descripcion:      text('descripcion').default(''),
+  pagoHorasExtra:   numeric('pago_horas_extra', { precision: 12, scale: 2 }),
+  tipoCambio:       numeric('tipo_cambio', { precision: 8, scale: 2 }).notNull().default('525'),
+  montoColonizado:  numeric('monto_colonizado', { precision: 14, scale: 2 }),
+
+  numeroFactura:    text('numero_factura'),
+  fechaFactura:     timestamp('fecha_factura', { withTimezone: true }),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+// ============================================
 // TIPOS
 // ============================================
 export type User = typeof users.$inferSelect;
@@ -219,3 +247,5 @@ export type CasoExito = typeof casosExito.$inferSelect;
 export type Automatizacion = typeof automatizaciones.$inferSelect;
 export type Ejecucion = typeof ejecuciones.$inferSelect;
 export type ProyectoSoftware = typeof proyectosSoftware.$inferSelect;
+export type RegistroFacturacion = typeof registrosFacturacion.$inferSelect;
+export type NuevoRegistroFacturacion = typeof registrosFacturacion.$inferInsert;
